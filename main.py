@@ -1,7 +1,8 @@
 import telebot
 import requests
+from datetime import time, date, datetime
 
-TOKEN = '5587215024:AAFe4Md0_AjWIT7Nfc0giLZlM-YtQcSMc8g'  # токен бота
+TOKEN = '5118258895:AAGJd5IPGrPrAnFM7DTVWSyn2RYdtVwSkcA'  # токен бота
 
 weather_code = {'4': 'Дым',  # соответствие кода погоды и его строкового представления (для обработки зответа на запрос gismeteo)
                 '5': 'Мгла',
@@ -122,10 +123,12 @@ class DataBase:  # класс, в котором хранится информа
         self.content = {}
 
     def new_obj(self, id, latitude=None, longitude=None, name=None, notifications=True):  # создание новоог объекта, записывается в self.content
+        print(longitude)
         self.content[str(id)] = {'name': name,
                                  'latitude': latitude,
                                  'longitude': longitude,
-                                 'notifications': notifications}
+                                 'notifications': notifications,
+                                 'utc': float(longitude) // 15 if longitude else None}
 
     def __getitem__(self, item):  # вызывается при обращении к объекту по ключу, возвращает информацию о пользователе
         try:
@@ -144,6 +147,7 @@ class DataBase:  # класс, в котором хранится информа
         self.content[str(id)]['longitude'] = longitude
         self.content[str(id)]["latitude"] = latitude
         self.content[str(id)]['notifications'] = notifications
+        self.content[str(id)]["utc"] = float(longitude) // 15
 
     def __str__(self):  # строковое представление БД
         return str(self.content)
@@ -157,11 +161,15 @@ class DataBase:  # класс, в котором хранится информа
     def to_notify(self, id):
         return self.content[str(id)]['notifications']
 
+    def get_info(self):
+        return self.content
+
+
 db = DataBase()  # создание объекта базы данных
 
 
 @bot.message_handler(commands=["start"])
-def start(message):  # инициализация пользователя, отправляет приветствие и запрашивает геопозицию
+def start(message): # инициализация пользователя, отправляет приветствие и запрашивает геопозицию
     try:
         db.new_obj(id=message.chat.id,  # пользователь записывается в БД
                    name=message.from_user.first_name)
@@ -219,6 +227,16 @@ def give_response(message):  # отправка сообщения с прогн
         print(e)
 
 
+
+
+
+    print(db.get_info())
+
+
+
+
+
+
 def parce(jsonfile):  # функция преобразует ответ на  запрос .json в строку, которая является прогнозом погоды
     try:
         global weather_code
@@ -240,10 +258,17 @@ def parce(jsonfile):  # функция преобразует ответ на  �
         print(e)
 
 
+# @bot.message_handler(func=lambda message: False) #cause there is no message
+# def saturday_message():
+#     info = db.get_info()
+#     for i in info:
+#     now = datetime.now()
+#     if (now.date().weekday() == 5) and (now.time() == time(8,0)):
+#         bot.send_message(chat_id, 'Wake up!')
+
+
 if __name__ == '__main__':  # запуск бота  через интерпретатор
     print('Starting..')
     bot.polling(none_stop=True, interval=1)
 
 
-
-print()
