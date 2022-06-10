@@ -140,10 +140,10 @@ class DataBase:  # класс, в котором хранится информа
         else:
             return False
 
-    def change_loc(self, id, latitude=0, longitude=0, notifications=True):  # вызывается при смене геопозиции у инициализированного пользователя
+    def change_loc(self, id, latitude=0, longitude=0):  # вызывается при смене геопозиции у инициализированного пользователя
         self.content[str(id)]['longitude'] = longitude
         self.content[str(id)]["latitude"] = latitude
-        self.content[str(id)]['notifications'] = notifications
+
 
     def __str__(self):  # строковое представление БД
         return str(self.content)
@@ -156,6 +156,10 @@ class DataBase:  # класс, в котором хранится информа
 
     def to_notify(self, id):
         return self.content[str(id)]['notifications']
+
+    def turn_nots(self, id):
+        self.content[str(id)]['notifications'] = not self.content[str(id)]['notifications']
+
 
 db = DataBase()  # создание объекта базы данных
 
@@ -219,6 +223,17 @@ def give_response(message):  # отправка сообщения с прогн
         print(e)
 
 
+@bot.message_handler(commands=['notifications'])
+def change_nots(message):
+    try:
+        db.turn_nots(id=message.chat.id)
+        bot.send_message(message.chat.id, f'Теперь уведомления'
+                                          f' {"включены." if db[str(message.chat.id)]["notifications"] else "выключены."}')
+    except Exception as e:
+        bot.send_message(message.chat.id, f'ERROR: {e}')
+        print(e)
+
+        
 def parce(jsonfile):  # функция преобразует ответ на  запрос .json в строку, которая является прогнозом погоды
     try:
         global weather_code
@@ -244,6 +259,3 @@ if __name__ == '__main__':  # запуск бота  через интерпре
     print('Starting..')
     bot.polling(none_stop=True, interval=1)
 
-
-
-print()
