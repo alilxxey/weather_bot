@@ -128,7 +128,7 @@ class DataBase:  # класс, в котором хранится информа
                                  'latitude': latitude,
                                  'longitude': longitude,
                                  'notifications': notifications,
-                                 'utc': float(longitude) // 15 if longitude else None}
+                                 'utc': 3}
 
     def __getitem__(self, item):  # вызывается при обращении к объекту по ключу, возвращает информацию о пользователе
         try:
@@ -138,40 +138,27 @@ class DataBase:  # класс, в котором хранится информа
             raise KeyError(f'wrong id/no id in DB, {e}')
 
     def includes(self, id):  # проверяет, есть ли данный пользователь в БД
-        if str(id) in self.content.keys():
-            return True
-        else:
-            return False
+        return str(id) in self.content.keys()
 
     def change_loc(self, id, latitude=0, longitude=0):  # вызывается при смене геопозиции у инициализированного пользователя
         self.content[str(id)]['longitude'] = longitude
         self.content[str(id)]["latitude"] = latitude
-<<<<<<< HEAD
-        self.content[str(id)]['notifications'] = notifications
-        self.content[str(id)]["utc"] = float(longitude) // 15
-=======
-
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
+        self.content[str(id)]["utc"] = 3
 
     def __str__(self):  # строковое представление БД
         return str(self.content)
 
     def havegeo(self, id):  # проверка наличия геопозиции у пользователя ID
-        if self.content[str(id)]['latitude'] is not None:
-            return True
-        else:
-            return False
+        return self.content[str(id)]['latitude']
 
     def to_notify(self, id):
         return self.content[str(id)]['notifications']
 
-<<<<<<< HEAD
     def get_info(self):
         return self.content
-=======
+
     def turn_nots(self, id):
         self.content[str(id)]['notifications'] = not self.content[str(id)]['notifications']
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
 
 
 db = DataBase()  # создание объекта базы данных
@@ -236,18 +223,6 @@ def give_response(message):  # отправка сообщения с прогн
         print(e)
 
 
-<<<<<<< HEAD
-
-
-
-    print(db.get_info())
-
-
-
-
-
-
-=======
 @bot.message_handler(commands=['notifications'])
 def change_nots(message):
     try:
@@ -258,8 +233,7 @@ def change_nots(message):
         bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
 
-        
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
+
 def parce(jsonfile):  # функция преобразует ответ на  запрос .json в строку, которая является прогнозом погоды
     try:
         global weather_code
@@ -293,8 +267,3 @@ def parce(jsonfile):  # функция преобразует ответ на  �
 if __name__ == '__main__':  # запуск бота  через интерпретатор
     print('Starting..')
     bot.polling(none_stop=True, interval=1)
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
