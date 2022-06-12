@@ -1,6 +1,10 @@
 import telebot
 import requests
-from datetime import time, date, datetime
+from datetime import time, date, datetime, timedelta, timezone
+import schedule
+import time
+from multiprocessing.context import Process
+
 
 TOKEN = '5118258895:AAGJd5IPGrPrAnFM7DTVWSyn2RYdtVwSkcA'  # токен бота
 
@@ -123,12 +127,11 @@ class DataBase:  # класс, в котором хранится информа
         self.content = {}
 
     def new_obj(self, id, latitude=None, longitude=None, name=None, notifications=True):  # создание новоог объекта, записывается в self.content
-        print(longitude)
         self.content[str(id)] = {'name': name,
                                  'latitude': latitude,
                                  'longitude': longitude,
                                  'notifications': notifications,
-                                 'utc': float(longitude) // 15 if longitude else None}
+                                 'utc': 3}
 
     def __getitem__(self, item):  # вызывается при обращении к объекту по ключу, возвращает информацию о пользователе
         try:
@@ -138,40 +141,27 @@ class DataBase:  # класс, в котором хранится информа
             raise KeyError(f'wrong id/no id in DB, {e}')
 
     def includes(self, id):  # проверяет, есть ли данный пользователь в БД
-        if str(id) in self.content.keys():
-            return True
-        else:
-            return False
+        return str(id) in self.content.keys()
 
     def change_loc(self, id, latitude=0, longitude=0):  # вызывается при смене геопозиции у инициализированного пользователя
         self.content[str(id)]['longitude'] = longitude
         self.content[str(id)]["latitude"] = latitude
-<<<<<<< HEAD
-        self.content[str(id)]['notifications'] = notifications
-        self.content[str(id)]["utc"] = float(longitude) // 15
-=======
+        self.content[str(id)]["utc"] = 3
+        print(self.content)
 
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
-
-    def __str__(self):  # строковое представление БД
-        return str(self.content)
+    # def __str__(self):  # строковое
 
     def havegeo(self, id):  # проверка наличия геопозиции у пользователя ID
-        if self.content[str(id)]['latitude'] is not None:
-            return True
-        else:
-            return False
+        return self.content[str(id)]['latitude']
 
     def to_notify(self, id):
         return self.content[str(id)]['notifications']
 
-<<<<<<< HEAD
     def get_info(self):
         return self.content
-=======
+
     def turn_nots(self, id):
         self.content[str(id)]['notifications'] = not self.content[str(id)]['notifications']
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
 
 
 db = DataBase()  # создание объекта базы данных
@@ -236,18 +226,6 @@ def give_response(message):  # отправка сообщения с прогн
         print(e)
 
 
-<<<<<<< HEAD
-
-
-
-    print(db.get_info())
-
-
-
-
-
-
-=======
 @bot.message_handler(commands=['notifications'])
 def change_nots(message):
     try:
@@ -258,8 +236,6 @@ def change_nots(message):
         bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
 
-        
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
 def parce(jsonfile):  # функция преобразует ответ на  запрос .json в строку, которая является прогнозом погоды
     try:
         global weather_code
@@ -275,26 +251,74 @@ def parce(jsonfile):  # функция преобразует ответ на  �
                f"Вероятность грозы {'есть.' if jsonfile['response']['storm'] else 'отсутствует.'}\n" \
                f"Осадки: " \
                f"{['осадков нет.', 'дождь', 'снег', 'нет осадков'][jsonfile['response']['precipitation']['type']]}\n" \
-               + ('Погодное явление: ' + weather_code[str(jsonfile['response']['phenomenon'])]
-                  if str(jsonfile['response']['phenomenon']) in weather_code.keys() else '')
+               + (('Погодное явление: ' + weather_code[str(jsonfile['response']['phenomenon'])]
+                   if str(jsonfile['response']['phenomenon']) in weather_code.keys() else '') if
+                  'phenomenon' in jsonfile['response'].keys() else '')
     except Exception as e:
         print(e)
 
 
-# @bot.message_handler(func=lambda message: False) #cause there is no message
-# def saturday_message():
-#     info = db.get_info()
-#     for i in info:
-#     now = datetime.now()
-#     if (now.date().weekday() == 5) and (now.time() == time(8,0)):
-#         bot.send_message(chat_id, 'Wake up!')
+class ScheduleMessage:
+    @staticmethod
+    def try_send_schedule():
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+    @staticmethod
+    def start_process():
+        p1 = Process(target=ScheduleMessage.try_send_schedule,
+                     args=())
+        p1.start()
+
+
+def notice():
+    print(db)
+    try:
+        database = db.get_info()
+        print(database)
+        database = db.content
+        print(database)
+        for _id in database:
+            print(_id, database[_id])
+            try:
+                send_not(database[_id], _id)
+            except KeyError as e:
+                print(e)
+
+    except Exception as e:
+        print(e)
+
+
+def start_sch():
+    try:
+        schedule.every().day.at('13:28').do(notice)
+        schedule.every().day.at('18:00').do(notice)
+    except Exception as e:
+        print(e)
+
+
+@bot.message_handler()
+def send_not(database, _id):
+    print(234)
+    try:
+        if database['notifications']:
+            headers = {'X-Gismeteo-Token': '61f2622d432a64.10698954'}
+            _latitude = db[_id]['latitude']
+            _longitude = db[_id]['longitude']
+            print(_longitude)
+            print(_latitude)
+            url = f'https://api.gismeteo.net/v2/weather/current/?latitude={_latitude}&longitude={_longitude}'
+            # запрос отправляется в gismeteo API
+            resp = requests.get(url, headers=headers).json()
+            bot.send_message(_id, parce(resp))  # запрос преобразуется в сообщение, отправляется пользователю
+    except Exception as e:
+        bot.send_message(_id, f'ERROR: {e}')
+        print(e)
 
 
 if __name__ == '__main__':  # запуск бота  через интерпретатор
     print('Starting..')
+    ScheduleMessage.start_process()
+    start_sch()
     bot.polling(none_stop=True, interval=1)
-
-<<<<<<< HEAD
-
-=======
->>>>>>> 9a80d782cf5cc7435af495c1d3701d79c577f293
