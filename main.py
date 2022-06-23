@@ -1,14 +1,14 @@
-import telebot
 import requests
 from datetime import time, date, datetime, timedelta, timezone
-import schedule
-import time
-from multiprocessing.context import Process
+from sys import getsizeof
+import asyncio
+import telebot.async_telebot
+import aioschedule as schedule
+import aiohttp
 
+TOKEN = '5118258895:AAGJd5IPGrPrAnFM7DTVWSyn2RYdtVwSkcA'
 
-TOKEN = '5118258895:AAGJd5IPGrPrAnFM7DTVWSyn2RYdtVwSkcA'  # токен бота
-
-weather_code = {'4': 'Дым',  # соответствие кода погоды и его строкового представления (для обработки зответа на запрос gismeteo)
+weather_code = {'4': 'Дым',
                 '5': 'Мгла',
                 '6': 'Пыльная',
                 '7': 'Пыльная',
@@ -119,12 +119,13 @@ weather_code = {'4': 'Дым',  # соответствие кода погоды
                 '528': 'Морозный',
                 '568': 'Небольшие'}
 
-bot = telebot.TeleBot(TOKEN)  # инициализация бота
+bot = telebot.async_telebot.AsyncTeleBot(TOKEN)  # инициализация бота
 
 
 class DataBase:  # класс, в котором хранится информация о пользователях
     def __init__(self):  # инициализация, создание словаря
         self.content = {}
+        print(__name__)
 
     def new_obj(self, id, latitude=None, longitude=None, name=None, notifications=True):  # создание новоог объекта, записывается в self.content
         self.content[str(id)] = {'name': name,
@@ -138,7 +139,8 @@ class DataBase:  # класс, в котором хранится информа
             print(self.content)
             return self.content[str(item)]
         except Exception as e:
-            raise KeyError(f'wrong id/no id in DB, {e}')
+            pass
+             # raise KeyError(f'wrong id/no id in DB, {e}')
 
     def includes(self, id):  # проверяет, есть ли данный пользователь в БД
         return str(id) in self.content.keys()
@@ -149,7 +151,8 @@ class DataBase:  # класс, в котором хранится информа
         self.content[str(id)]["utc"] = 3
         print(self.content)
 
-    # def __str__(self):  # строковое
+    def __str__(self):  # строковое
+        return str(self.content)
 
     def havegeo(self, id):  # проверка наличия геопозиции у пользователя ID
         return self.content[str(id)]['latitude']
@@ -163,35 +166,38 @@ class DataBase:  # класс, в котором хранится информа
     def turn_nots(self, id):
         self.content[str(id)]['notifications'] = not self.content[str(id)]['notifications']
 
+    def __sizeof__(self):
+        return getsizeof(self.content)
 
-db = DataBase()  # создание объекта базы данных
+
+db = DataBase()
 
 
 @bot.message_handler(commands=["start"])
-def start(message): # инициализация пользователя, отправляет приветствие и запрашивает геопозицию
+async def start(message): # инициализация пользователя, отправляет приветствие и запрашивает геопозицию
     try:
         db.new_obj(id=message.chat.id,  # пользователь записывается в БД
                    name=message.from_user.first_name)
-        bot.send_message(message.chat.id, f'Здравствуй, {db[message.chat.id]["name"]}!'
-                                          f' Это бот для получения прогноза погоды '
-                                          f'по твоей геопозиции. Отправь мне свою локацию!')
+        await bot.send_message(message.chat.id, f'Здравствуй, {db[message.chat.id]["name"]}!'
+                                                f' Это бот для получения прогноза погоды '
+                                                f'по твоей геопозиции. Отправь мне свою локацию!')
     except Exception as e:
-        bot.send_message(message.chat.id, f'ERROR: {e}')
+        await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
 
 
 @bot.message_handler(content_types=['location'])
-def get_location(message):  # функция вызывается, когда пользователь отсылает своб геопозицию
+async def get_location(message):  # функция вызывается, когда пользователь отсылает своб геопозицию
     try:
         if db.havegeo(message.chat.id):  # проверка, есть ли геопозиция пользователя в базе данных
-            bot.send_message(message.chat.id, f'Поменял вашу геопозицию!\n'  
-                                              f'Старые данные:'
-                                              f' долгота {str(db[message.chat.id]["longitude"])}'
-                                              f' широта {str(db[message.chat.id]["latitude"])}'
-                                              f'\nНовые данные: '
-                                              f'долгота {str(message.location.longitude)}'
-                                              f' широта {str(message.location.latitude)}'
-                                              f'\nЧтобы получить прогноз, пришлите любой символ')
+            await bot.send_message(message.chat.id, f'Поменял вашу геопозицию!\n'
+                                                    f'Старые данные:'
+                                                    f' долгота {str(db[message.chat.id]["longitude"])}'
+                                                    f' широта {str(db[message.chat.id]["latitude"])}'
+                                                    f'\nНовые данные: '
+                                                    f'долгота {str(message.location.longitude)}'
+                                                    f' широта {str(message.location.latitude)}'
+                                                    f'\nЧтобы получить прогноз, пришлите любой символ')
             db.change_loc(id=message.chat.id,  # если да, то новая геопозиция записывается в базу данных
                           latitude=message.location.latitude,
                           longitude=message.location.longitude)
@@ -200,16 +206,16 @@ def get_location(message):  # функция вызывается, когда п
                        name=message.from_user.first_name,
                        latitude=message.location.latitude,
                        longitude=message.location.longitude)
-            bot.send_message(message.chat.id, f'Сохранил вашу геопозицию!'
-                                              f' Для получения прогроза погоды, отправьте любой символ.'
-                                              f' \n   Сменить геопозицию: /start')
+            await bot.send_message(message.chat.id, f'Сохранил вашу геопозицию!'
+                                                    f' Для получения прогроза погоды, отправьте любой символ.'
+                                                    f' \n   Сменить геопозицию: /start')
     except Exception as e:
-        bot.send_message(message.chat.id, f'ERROR: {e}')
+        await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
 
 
 @bot.message_handler()
-def give_response(message):  # отправка сообщения с прогнозом погоды, вызывается при получении любого сообщения кроме /start и геопозиции
+async def give_response(message):  # отправка сообщения с прогнозом погоды, вызывается при получении любого сообщения кроме /start и геопозиции
     try:
         headers = {'X-Gismeteo-Token': '61f2622d432a64.10698954'}
         _latitude = db[message.chat.id]['latitude']
@@ -220,21 +226,23 @@ def give_response(message):  # отправка сообщения с прогн
         # запрос отправляется в gismeteo API
         resp = requests.get(url, headers=headers).json()
         print(resp)
-        bot.send_message(message.chat.id, parce(resp))  # запрос преобразуется в сообщение, отправляется пользователю
+        await bot.send_message(message.chat.id,
+                               parce(resp))  # запрос преобразуется в сообщение, отправляется пользователю
     except Exception as e:
-        bot.send_message(message.chat.id, f'ERROR: {e}')
+        await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
 
 
 @bot.message_handler(commands=['notifications'])
-def change_nots(message):
+async def change_nots(message):
     try:
         db.turn_nots(id=message.chat.id)
-        bot.send_message(message.chat.id, f'Теперь уведомления'
-                                          f' {"включены." if db[str(message.chat.id)]["notifications"] else "выключены."}')
+        await bot.send_message(message.chat.id, f'Теперь уведомления'
+                                                f' {"включены." if db[str(message.chat.id)]["notifications"] else "выключены."}')
     except Exception as e:
-        bot.send_message(message.chat.id, f'ERROR: {e}')
+        await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
+
 
 def parce(jsonfile):  # функция преобразует ответ на  запрос .json в строку, которая является прогнозом погоды
     try:
@@ -258,31 +266,19 @@ def parce(jsonfile):  # функция преобразует ответ на  �
         print(e)
 
 
-class ScheduleMessage:
-    @staticmethod
-    def try_send_schedule():
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
-
-    @staticmethod
-    def start_process():
-        p1 = Process(target=ScheduleMessage.try_send_schedule,
-                     args=())
-        p1.start()
+async def try_send_schedule():
+    while True:
+        await schedule.run_pending()
+        await asyncio.sleep(1)
 
 
-def notice():
-    print(db)
+async def notice():
     try:
-        database = db.get_info()
-        print(database)
-        database = db.content
-        print(database)
-        for _id in database:
-            print(_id, database[_id])
+
+        for _id in db.content.keys():
+
             try:
-                send_not(database[_id], _id)
+                await send_not(db.content[_id], _id)
             except KeyError as e:
                 print(e)
 
@@ -290,17 +286,14 @@ def notice():
         print(e)
 
 
-def start_sch():
+async def start_sch():
     try:
-        schedule.every().day.at('13:28').do(notice)
-        schedule.every().day.at('18:00').do(notice)
+        schedule.every(5).seconds.do(notice)
     except Exception as e:
         print(e)
 
 
-@bot.message_handler()
-def send_not(database, _id):
-    print(234)
+async def send_not(database, _id):
     try:
         if database['notifications']:
             headers = {'X-Gismeteo-Token': '61f2622d432a64.10698954'}
@@ -308,17 +301,22 @@ def send_not(database, _id):
             _longitude = db[_id]['longitude']
             print(_longitude)
             print(_latitude)
-            url = f'https://api.gismeteo.net/v2/weather/current/?latitude={_latitude}&longitude={_longitude}'
-            # запрос отправляется в gismeteo API
-            resp = requests.get(url, headers=headers).json()
-            bot.send_message(_id, parce(resp))  # запрос преобразуется в сообщение, отправляется пользователю
+            async with aiohttp.ClientSession() as session:
+                url = f'https://api.gismeteo.net/v2/weather/current/?latitude={_latitude}&longitude={_longitude}'
+                async with session.get(url, headers=headers) as resp:
+                    resp = await resp.json()
+                    print(resp)
+
+            await bot.send_message(_id, parce(resp))
     except Exception as e:
-        bot.send_message(_id, f'ERROR: {e}')
+        await bot.send_message(_id, f'ERROR: {e}')
         print(e)
 
 
-if __name__ == '__main__':  # запуск бота  через интерпретатор
-    print('Starting..')
-    ScheduleMessage.start_process()
-    start_sch()
-    bot.polling(none_stop=True, interval=1)
+async def main():
+    await start_sch()
+    await asyncio.gather(bot.polling(interval=1), try_send_schedule())
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
