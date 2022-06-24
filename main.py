@@ -7,6 +7,7 @@ import datetime as dt
 from config import tg_token as token
 from config import gis_token
 from config import weather_code
+import pickle
 
 
 bot = telebot.async_telebot.AsyncTeleBot(token)
@@ -63,8 +64,18 @@ class DataBase:
         except Exception as e:
             print(e)
 
+    def __getstate__(self):
+        state = {'content': self.content}
+        return state
 
-db = DataBase()
+    def __setstate__(self, state):
+        self.content = state['content']
+
+
+with open("file.pkl", "rb") as fp:
+    print(1)
+    db = pickle.load(fp)
+    print(f'LOADED DB:::: {db}\n self.content: {db.content}\n\n')
 
 
 @bot.message_handler(commands=["start"])
@@ -122,6 +133,7 @@ async def give_response(message):
             async with session.get(url, headers=headers) as resp:
                 resp = await resp.json()
                 print(resp)
+        await session.close()
         await bot.send_message(message.chat.id,
                                parce(resp))
     except Exception as e:
@@ -184,13 +196,23 @@ async def start_sch():
         schedule.every().day.at('12:00').do(notice)
         schedule.every().day.at('14:00').do(notice)
         schedule.every().day.at('18:00').do(notice)
+        schedule.every().minute.do(notice)
     except Exception as e:
         print(e)
 
 
+async def check_time(_id):
+    return True
+    # info_about_user = db[str(_id)]
+    # utc = info_about_user['longitude'] // 15
+    # if dt.datetime.now().time().hour - 3 + utc in ['1', '15', '18']:
+    #     return True
+    # return False
+
+
 async def send_not(_id):
     try:
-        if db[str(_id)]['notifications'] and db[str(_id)]['longitude']:
+        if db[str(_id)]['notifications'] and db[str(_id)]['longitude'] and check_time(_id):
             headers = {'X-Gismeteo-Token': gis_token}
             _latitude = db[_id]['latitude']
             _longitude = db[_id]['longitude']
@@ -208,9 +230,22 @@ async def send_not(_id):
         print(e)
 
 
+async def savestate():
+    while True:
+        with open("file.pkl", "wb") as fp:
+            pickle.dump(db, fp)
+            print(f'DB saved!\ndb: {db}\ndb.content: {db.content}')
+        await asyncio.sleep(15)  # !!!!!! ЗИМЕНИТЬ НА 60/120/180/240/300/6000
+
+
 async def main():
     await start_sch()
-    await asyncio.gather(bot.polling(interval=1, non_stop=True), try_send_schedule())
+    await asyncio.gather(bot.polling(interval=1,
+                                     non_stop=True,
+                                     timeout=1000,
+                                     request_timeout=1000),
+                         try_send_schedule(),
+                         savestate())
 
 
 if __name__ == '__main__':
