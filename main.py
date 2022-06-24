@@ -93,6 +93,9 @@ async def start(message):
 @bot.message_handler(content_types=['location'])
 async def get_location(message):
     try:
+        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+        b2 = telebot.types.InlineKeyboardButton('Погода')
+        markup.add(b2)
         if db.havegeo(message.chat.id):
             await bot.send_message(message.chat.id, f'Поменял вашу геопозицию!\n'
                                                     f'Старые данные:'
@@ -116,10 +119,9 @@ async def get_location(message):
             await bot.send_message(message.chat.id, f'Сохранил вашу геопозицию!'
                                                     f' Для получения прогроза погоды, нажмите'
                                                     f' на кнопку "Погода"'
-                                                    f' \n   Сменить геопозицию: /start')
-        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-        b2 = telebot.types.InlineKeyboardButton('Погода')
-        markup.add(b2)
+                                                    f' \n   Сменить геопозицию: /start',
+                                   reply_markup=markup)
+
     except Exception as e:
         await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
