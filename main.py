@@ -1,160 +1,48 @@
-import requests
-from datetime import time, date, datetime, timedelta, timezone
 from sys import getsizeof
 import asyncio
 import telebot.async_telebot
 import aioschedule as schedule
 import aiohttp
-
-TOKEN = '5118258895:AAGJd5IPGrPrAnFM7DTVWSyn2RYdtVwSkcA'
-
-weather_code = {'4': 'Дым',
-                '5': 'Мгла',
-                '6': 'Пыльная',
-                '7': 'Пыльная',
-                '8': 'Пыльные',
-                '9': 'Пыльная',
-                '10': 'Дымка',
-                '11': 'Туман',
-                '12': 'Туман',
-                '13': 'Зарница',
-                '18': 'Шквалы',
-                '19': 'Смерч',
-                '20': 'Морось',
-                '24': 'Гололед',
-                '25': 'Ливень',
-                '27': 'Град',
-                '28': 'Туман',
-                '30': 'Пыльная',
-                '31': 'Пыльная',
-                '32': 'Пыльная',
-                '33': 'Пыльная',
-                '34': 'Пыльная',
-                '35': 'Пыльная',
-                '36': 'Поземок',
-                '37': 'Сильный',
-                '38': 'Метель',
-                '39': 'Сильная',
-                '40': 'Туман',
-                '41': 'Туман',
-                '42': 'Туман',
-                '43': 'Туман',
-                '44': 'Туман',
-                '45': 'Туман',
-                '46': 'Туман',
-                '47': 'Туман',
-                '48': 'Туман',
-                '49': 'Туман',
-                '50': 'Небольшая',
-                '51': 'Морось',
-                '52': 'Морось',
-                '53': 'Морось',
-                '54': 'Сильная',
-                '55': 'Морось',
-                '56': 'Небольшая',
-                '57': 'Морось',
-                '66': 'Гололед',
-                '67': 'Гололед',
-                '68': 'Дождь',
-                '69': 'Дождь',
-                '74': 'Снегопад',
-                '75': 'Снегопад',
-                '76': 'Ледяные',
-                '77': 'Снежные',
-                '78': 'Снежные',
-                '79': 'Ледяной',
-                '81': 'Ливень',
-                '82': 'Сильный',
-                '83': 'Небольшие',
-                '84': 'Ливень',
-                '87': 'Снежная',
-                '88': 'Снежная',
-                '89': 'Слабый',
-                '90': 'Град',
-                '93': 'Град',
-                '94': 'Град',
-                '96': 'Град',
-                '99': 'Град',
-                '104': 'Мгла',
-                '105': 'Мгла',
-                '110': 'Дымка',
-                '111': 'Ледяные',
-                '112': 'Зарница',
-                '118': 'Шквалы',
-                '120': 'Туман',
-                '122': 'Морось',
-                '125': 'Гололёд',
-                '130': 'Туман',
-                '131': 'Туман',
-                '132': 'Туман',
-                '133': 'Туман',
-                '134': 'Туман',
-                '135': 'Туман',
-                '147': 'Осадки',
-                '148': 'Сильные',
-                '150': 'Морось',
-                '151': 'Небольшая',
-                '152': 'Морось',
-                '153': 'Сильная',
-                '154': 'Небольшая',
-                '155': 'Морось',
-                '156': 'Сильная',
-                '164': 'Гололед',
-                '165': 'Гололед',
-                '166': 'Гололед',
-                '174': 'Слабая',
-                '175': 'Ледяная',
-                '176': 'Сильная',
-                '177': 'Снежные',
-                '178': 'Ледяные',
-                '180': 'Ливневый',
-                '189': 'Град',
-                '193': 'Град',
-                '196': 'Град',
-                '199': 'Смерч',
-                '280': 'Ливневый',
-                '380': 'Ливневые',
-                '500': 'Осадки',
-                '501': 'Сильные',
-                '528': 'Морозный',
-                '568': 'Небольшие'}
-
-bot = telebot.async_telebot.AsyncTeleBot(TOKEN)  # инициализация бота
+import datetime as dt
+from config import tg_token as token
+from config import gis_token
+from config import weather_code
 
 
-class DataBase:  # класс, в котором хранится информация о пользователях
-    def __init__(self):  # инициализация, создание словаря
+bot = telebot.async_telebot.AsyncTeleBot(token)
+
+
+class DataBase:
+    def __init__(self):
         self.content = {}
-        print(__name__)
 
-    def new_obj(self, id, latitude=None, longitude=None, name=None, notifications=True):  # создание новоог объекта, записывается в self.content
+    def new_obj(self, id, latitude=None, longitude=None, name=None, notifications=True):
         self.content[str(id)] = {'name': name,
                                  'latitude': latitude,
                                  'longitude': longitude,
                                  'notifications': notifications,
                                  'utc': 3}
 
-    def __getitem__(self, item):  # вызывается при обращении к объекту по ключу, возвращает информацию о пользователе
+    def __getitem__(self, item):
         try:
             print(self.content)
             return self.content[str(item)]
         except Exception as e:
-            pass
-             # raise KeyError(f'wrong id/no id in DB, {e}')
+            print(e, 'no id in db')
 
-    def includes(self, id):  # проверяет, есть ли данный пользователь в БД
+    def includes(self, id):
         return str(id) in self.content.keys()
 
-    def change_loc(self, id, latitude=0, longitude=0):  # вызывается при смене геопозиции у инициализированного пользователя
+    def change_loc(self, id, latitude=0, longitude=0):
         self.content[str(id)]['longitude'] = longitude
         self.content[str(id)]["latitude"] = latitude
         self.content[str(id)]["utc"] = 3
         print(self.content)
 
-    def __str__(self):  # строковое
+    def __str__(self):
         return str(self.content)
 
-    def havegeo(self, id):  # проверка наличия геопозиции у пользователя ID
+    def havegeo(self, id):
         return self.content[str(id)]['latitude']
 
     def to_notify(self, id):
@@ -167,16 +55,19 @@ class DataBase:  # класс, в котором хранится информа
         self.content[str(id)]['notifications'] = not self.content[str(id)]['notifications']
 
     def __sizeof__(self):
-        return getsizeof(self.content)
+        try:
+            return getsizeof(self.content)
+        except Exception as e:
+            print(e)
 
 
 db = DataBase()
 
 
 @bot.message_handler(commands=["start"])
-async def start(message): # инициализация пользователя, отправляет приветствие и запрашивает геопозицию
+async def start(message):
     try:
-        db.new_obj(id=message.chat.id,  # пользователь записывается в БД
+        db.new_obj(id=message.chat.id,
                    name=message.from_user.first_name)
         await bot.send_message(message.chat.id, f'Здравствуй, {db[message.chat.id]["name"]}!'
                                                 f' Это бот для получения прогноза погоды '
@@ -187,9 +78,9 @@ async def start(message): # инициализация пользователя,
 
 
 @bot.message_handler(content_types=['location'])
-async def get_location(message):  # функция вызывается, когда пользователь отсылает своб геопозицию
+async def get_location(message):
     try:
-        if db.havegeo(message.chat.id):  # проверка, есть ли геопозиция пользователя в базе данных
+        if db.havegeo(message.chat.id):
             await bot.send_message(message.chat.id, f'Поменял вашу геопозицию!\n'
                                                     f'Старые данные:'
                                                     f' долгота {str(db[message.chat.id]["longitude"])}'
@@ -198,11 +89,11 @@ async def get_location(message):  # функция вызывается, ког�
                                                     f'долгота {str(message.location.longitude)}'
                                                     f' широта {str(message.location.latitude)}'
                                                     f'\nЧтобы получить прогноз, пришлите любой символ')
-            db.change_loc(id=message.chat.id,  # если да, то новая геопозиция записывается в базу данных
+            db.change_loc(id=message.chat.id,
                           latitude=message.location.latitude,
                           longitude=message.location.longitude)
         else:
-            db.new_obj(id=message.chat.id,  # если нет, то создается новый объект и туда записываются координаты пользователя
+            db.new_obj(id=message.chat.id,
                        name=message.from_user.first_name,
                        latitude=message.location.latitude,
                        longitude=message.location.longitude)
@@ -215,19 +106,20 @@ async def get_location(message):  # функция вызывается, ког�
 
 
 @bot.message_handler()
-async def give_response(message):  # отправка сообщения с прогнозом погоды, вызывается при получении любого сообщения кроме /start и геопозиции
+async def give_response(message):
     try:
-        headers = {'X-Gismeteo-Token': '61f2622d432a64.10698954'}
+        headers = {'X-Gismeteo-Token': gis_token}
         _latitude = db[message.chat.id]['latitude']
         _longitude = db[message.chat.id]['longitude']
         print(_longitude)
         print(_latitude)
-        url = f'https://api.gismeteo.net/v2/weather/current/?latitude={_latitude}&longitude={_longitude}'
-        # запрос отправляется в gismeteo API
-        resp = requests.get(url, headers=headers).json()
-        print(resp)
+        async with aiohttp.ClientSession() as session:
+            url = f'https://api.gismeteo.net/v2/weather/current/?latitude={_latitude}&longitude={_longitude}'
+            async with session.get(url, headers=headers) as resp:
+                resp = await resp.json()
+                print(resp)
         await bot.send_message(message.chat.id,
-                               parce(resp))  # запрос преобразуется в сообщение, отправляется пользователю
+                               parce(resp))
     except Exception as e:
         await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
@@ -244,9 +136,8 @@ async def change_nots(message):
         print(e)
 
 
-def parce(jsonfile):  # функция преобразует ответ на  запрос .json в строку, которая является прогнозом погоды
+def parce(jsonfile):
     try:
-        global weather_code
         return f"{'Ожидается' if jsonfile['response']['kind'] == 'Frc' else 'Наблюдается'}" \
                f" следующая погода:\n" \
                f"{jsonfile['response']['description']['full']}.\n" \
@@ -274,9 +165,7 @@ async def try_send_schedule():
 
 async def notice():
     try:
-
         for _id in db.content.keys():
-
             try:
                 await send_not(db.content[_id], _id)
             except KeyError as e:
@@ -296,7 +185,7 @@ async def start_sch():
 async def send_not(database, _id):
     try:
         if database['notifications']:
-            headers = {'X-Gismeteo-Token': '61f2622d432a64.10698954'}
+            headers = {'X-Gismeteo-Token': gis_token}
             _latitude = db[_id]['latitude']
             _longitude = db[_id]['longitude']
             print(_longitude)
@@ -315,7 +204,7 @@ async def send_not(database, _id):
 
 async def main():
     await start_sch()
-    await asyncio.gather(bot.polling(interval=1), try_send_schedule())
+    await asyncio.gather(bot.polling(interval=1, non_stop=True), try_send_schedule())
 
 
 if __name__ == '__main__':
