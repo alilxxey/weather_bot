@@ -101,7 +101,9 @@ async def get_location(message):
                                                     f'\nНовые данные: '
                                                     f'долгота {str(message.location.longitude)}'
                                                     f' широта {str(message.location.latitude)}'
-                                                    f'\nЧтобы получить прогноз, пришлите любой символ')
+                                                    f'\nЧтобы получить прогноз, нажмите на кнопку'
+                                                    f' "Погода"')
+
             db.change_loc(id=message.chat.id,
                           latitude=message.location.latitude,
                           longitude=message.location.longitude)
@@ -112,8 +114,12 @@ async def get_location(message):
                        longitude=message.location.longitude)
             db.set_utz(message.chat.id)
             await bot.send_message(message.chat.id, f'Сохранил вашу геопозицию!'
-                                                    f' Для получения прогроза погоды, отправьте любой символ.'
+                                                    f' Для получения прогроза погоды, нажмите'
+                                                    f' на кнопку "Погода"'
                                                     f' \n   Сменить геопозицию: /start')
+        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+        b2 = telebot.types.InlineKeyboardButton('Погода')
+        markup.add(b2)
     except Exception as e:
         await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
@@ -122,18 +128,20 @@ async def get_location(message):
 @bot.message_handler()
 async def give_response(message):
     try:
-        headers = {'X-Gismeteo-Token': gis_token}
-        _latitude = db[message.chat.id]['latitude']
-        _longitude = db[message.chat.id]['longitude']
-        print(_longitude)
-        print(_latitude)
-        async with aiohttp.ClientSession() as session:
-            url = f'https://api.gismeteo.net/v2/weather/current/?latitude={_latitude}&longitude={_longitude}'
-            async with session.get(url, headers=headers) as resp:
-                resp = await resp.json()
-                print(resp)
-        await bot.send_message(message.chat.id,
-                               parce(resp))
+        if message.text == 'Погода':
+            headers = {'X-Gismeteo-Token': gis_token}
+            _latitude = db[message.chat.id]['latitude']
+            _longitude = db[message.chat.id]['longitude']
+            print(_longitude)
+            print(_latitude)
+            async with aiohttp.ClientSession() as session:
+                url = f'https://api.gismeteo.net/v2/weather/current/?latitude=' \
+                      f'{_latitude}&longitude={_longitude}'
+                async with session.get(url, headers=headers) as resp:
+                    resp = await resp.json()
+                    print(resp)
+            await session.close()
+            await bot.send_message(message.chat.id, parce(resp))
     except Exception as e:
         await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
