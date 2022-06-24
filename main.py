@@ -73,7 +73,6 @@ class DataBase:
 
 
 with open("file.pkl", "rb") as fp:
-    print(1)
     db = pickle.load(fp)
     print(f'LOADED DB:::: {db}\n self.content: {db.content}\n\n')
 
@@ -133,7 +132,6 @@ async def give_response(message):
             async with session.get(url, headers=headers) as resp:
                 resp = await resp.json()
                 print(resp)
-        await session.close()
         await bot.send_message(message.chat.id,
                                parce(resp))
     except Exception as e:
@@ -145,8 +143,9 @@ async def give_response(message):
 async def change_nots(message):
     try:
         db.turn_nots(id=message.chat.id)
-        await bot.send_message(message.chat.id, f'Теперь уведомления'
-                                                f' {"включены." if db[str(message.chat.id)]["notifications"] else "выключены."}')
+        await bot.send_message(message.chat.id,
+                               f'Теперь уведомления'
+                               f' {"включены." if db[str(message.chat.id)]["notifications"] else "выключены."}')
     except Exception as e:
         await bot.send_message(message.chat.id, f'ERROR: {e}')
         print(e)
@@ -193,21 +192,17 @@ async def notice():
 
 async def start_sch():
     try:
-        schedule.every().day.at('12:00').do(notice)
-        schedule.every().day.at('14:00').do(notice)
-        schedule.every().day.at('18:00').do(notice)
-        schedule.every().minute.do(notice)
+        schedule.every().hour.do(notice)
     except Exception as e:
         print(e)
 
 
 async def check_time(_id):
-    return True
-    # info_about_user = db[str(_id)]
-    # utc = info_about_user['longitude'] // 15
-    # if dt.datetime.now().time().hour - 3 + utc in ['1', '15', '18']:
-    #     return True
-    # return False
+    info_about_user = db[str(_id)]
+    utc = info_about_user['longitude'] // 15
+    if dt.datetime.now().time().hour - 3 + utc in ['10', '12', '15', '18']:
+        return True
+    return False
 
 
 async def send_not(_id):
@@ -224,7 +219,7 @@ async def send_not(_id):
                     resp = await resp.json()
                     print(resp)
 
-            await bot.send_message(_id, f'Ваш рогноз погоды! \n{parce(resp)}')
+            await bot.send_message(_id, f'Ваш прогноз погоды! \n{parce(resp)}')
     except Exception as e:
         await bot.send_message(_id, f'ERROR: {e}')
         print(e)
@@ -235,7 +230,7 @@ async def savestate():
         with open("file.pkl", "wb") as fp:
             pickle.dump(db, fp)
             print(f'DB saved!\ndb: {db}\ndb.content: {db.content}')
-        await asyncio.sleep(15)  # !!!!!! ЗИМЕНИТЬ НА 60/120/180/240/300/6000
+        await asyncio.sleep(60)  # !!!!!! ЗИМЕНИТЬ НА 60/120/180/240/300/6000
 
 
 async def main():
