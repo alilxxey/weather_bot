@@ -54,6 +54,9 @@ class DataBase:
     def turn_nots(self, id):
         self.content[str(id)]['notifications'] = not self.content[str(id)]['notifications']
 
+    def set_utz(self, id):
+        self.content[str(id)]['utc'] = self.content[str(id)]['longitude'] // 15
+
     def __sizeof__(self):
         try:
             return getsizeof(self.content)
@@ -97,6 +100,7 @@ async def get_location(message):
                        name=message.from_user.first_name,
                        latitude=message.location.latitude,
                        longitude=message.location.longitude)
+            db.set_utz(message.chat.id)
             await bot.send_message(message.chat.id, f'Сохранил вашу геопозицию!'
                                                     f' Для получения прогроза погоды, отправьте любой символ.'
                                                     f' \n   Сменить геопозицию: /start')
@@ -167,7 +171,7 @@ async def notice():
     try:
         for _id in db.content.keys():
             try:
-                await send_not(db.content[_id], _id)
+                await send_not(_id)
             except KeyError as e:
                 print(e)
 
@@ -177,14 +181,16 @@ async def notice():
 
 async def start_sch():
     try:
-        schedule.every(5).seconds.do(notice)
+        schedule.every().day.at('12:00').do(notice)
+        schedule.every().day.at('14:00').do(notice)
+        schedule.every().day.at('18:00').do(notice)
     except Exception as e:
         print(e)
 
 
-async def send_not(database, _id):
+async def send_not(_id):
     try:
-        if database['notifications']:
+        if db[str(_id)]['notifications'] and db[str(_id)]['longitude']:
             headers = {'X-Gismeteo-Token': gis_token}
             _latitude = db[_id]['latitude']
             _longitude = db[_id]['longitude']
@@ -196,7 +202,7 @@ async def send_not(database, _id):
                     resp = await resp.json()
                     print(resp)
 
-            await bot.send_message(_id, parce(resp))
+            await bot.send_message(_id, f'Ваш рогноз погоды! \n{parce(resp)}')
     except Exception as e:
         await bot.send_message(_id, f'ERROR: {e}')
         print(e)
