@@ -181,16 +181,24 @@ async def notice():
 
 async def start_sch():
     try:
-        schedule.every().day.at('12:00').do(notice)
-        schedule.every().day.at('14:00').do(notice)
-        schedule.every().day.at('18:00').do(notice)
+        schedule.every().hour.do(notice)
+        schedule.every().minute.do(notice)
     except Exception as e:
         print(e)
 
 
+async def check_time(_id):
+    return True
+    # info_about_user = db[str(_id)]
+    # utc = info_about_user['longitude'] // 15
+    # if dt.datetime.now().time().hour - 3 + utc in ['1', '15', '18']:
+    #     return True
+    # return False
+
+
 async def send_not(_id):
     try:
-        if db[str(_id)]['notifications'] and db[str(_id)]['longitude']:
+        if db[str(_id)]['notifications'] and db[str(_id)]['longitude'] and check_time(_id):
             headers = {'X-Gismeteo-Token': gis_token}
             _latitude = db[_id]['latitude']
             _longitude = db[_id]['longitude']
